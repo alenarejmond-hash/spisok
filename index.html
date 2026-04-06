@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Список 2.0</title>
+    
+    <!-- PWA / Mobile Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Список 2.0">
+    <meta name="theme-color" content="#0f172a">
+    
+    <link rel="apple-touch-icon" href="https://i.postimg.cc/52J0Hfx3/logo.jpg">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://i.postimg.cc/52J0Hfx3/logo.jpg">
+
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Список%202.0%22,%22short_name%22:%22Список%202.0%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22#0f172a%22,%22theme_color%22:%22#0f172a%22,%22icons%22:[{%22src%22:%22https://i.postimg.cc/52J0Hfx3/logo.jpg%22,%22sizes%22:%22512x512%22,%22type%22:%22image/jpg%22,%22purpose%22:%22any%20maskable%22}]}">
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: 'Manrope', sans-serif;
+            background-color: #0f172a;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; /* Предотвращаем стандартный скролл при перетаскивании */
+        }
+
+        #root {
+            height: 100dvh;
+            width: 100%;
+            max-width: 450px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            background-color: #0f172a;
+            position: relative;
+        }
+
+        .scroll-container {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 20px));
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y; /* Разрешаем только вертикальный скролл */
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .header-title {
+            letter-spacing: 0.05em;
+            line-height: 1.2;
+        }
+        
+        .animate-item { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .tg-link {
+            background: rgba(36, 161, 222, 0.1);
+            border: 1px solid rgba(36, 161, 222, 0.3);
+            color: #24A1DE;
+        }
+
+        .fixed-action-container {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 450px;
+            z-index: 9999;
+            padding: 10px 20px calc(10px + env(safe-area-inset-bottom, 15px));
+            pointer-events: none;
+            background: linear-gradient(to top, #0f172a 70%, transparent);
+        }
+
+        .btn-glass-float {
+            pointer-events: auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            padding: 18px 28px;
+            border-radius: 24px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            width: 100%;
+        }
+        
+        .btn-glass-float:active { transform: scale(0.97); }
+
+        .add-form-popup {
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 28px;
+            width: 100%;
+            box-shadow: 0 -15px 50px rgba(0,0,0,0.8);
+        }
+
+        .static-header-section {
+            background: #0f172a;
+            z-index: 1000;
+            flex-shrink: 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-top: env(safe-area-inset-top, 10px);
+        }
+
+        .confirm-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Улучшенные стили перетаскивания */
+        .dragging {
+            opacity: 0.7;
+            transform: scale(1.03);
+            box-shadow: 0 20px 30px rgba(0,0,0,0.5);
+            z-index: 50;
+            border-color: #3b82f6 !important;
+            background: rgba(59, 130, 246, 0.1) !important;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            color: rgba(255,255,255,0.3);
+            touch-action: none; /* Критично для мобилок */
+        }
+        
+        .drag-handle:active { cursor: grabbing; }
+
+        .drop-indicator {
+            height: 4px;
+            background: #3b82f6;
+            border-radius: 2px;
+            margin: 4px 0;
+            transition: all 0.2s;
+        }
+    </style>
+</head>
+<body class="text-slate-200">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useRef } = React;
+
+        const Icons = {
+            Share: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>,
+            Check: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 6L9 17l-5-5"></path></svg>,
+            Circle: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+            Plane: ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path></svg>,
+            Telegram: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM12.191 5.27c-.148-.493-.756-.703-1.15-.504l-7.745 3.56c-.338.169-.306.635.063.745l2.248.672 1.135 3.007c.044.118.196.154.29.064l1.823-1.823 2.701 2.012c.315.235.762.064.846-.334l1.662-7.778c.036-.164.012-.337-.073-.426z"/></svg>,
+            RotateCcw: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>,
+            Grip: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+        };
+
+        const CATEGORIES = {
+            DOCS: { id: 'docs', label: 'Важное' },
+            CLOTHES: { id: 'clothes', label: 'Одежда' },
+            CARE: { id: 'care', label: 'Уход' },
+            HEALTH: { id: 'health', label: 'Здоровье' },
+            TECH: { id: 'tech', label: 'Техника' },
+            BASIC: { id: 'basic', label: 'Разное' }
+        };
+
+        const INITIAL_LIST = [
+            { id: 1, text: 'Паспорт', category: 'DOCS' },
+            { id: 2, text: 'Билеты', category: 'DOCS' },
+            { id: 3, text: 'Страховка', category: 'DOCS' },
+            { id: 4, text: 'Банковские карты', category: 'DOCS' },
+            { id: 5, text: 'Наличные', category: 'DOCS' },
+            { id: 6, text: 'Телефон', category: 'TECH' },
+            { id: 8, text: 'Нижнее бельё', category: 'CLOTHES' },
+            { id: 9, text: 'Футболки / топы', category: 'CLOTHES' },
+            { id: 18, text: 'Зубная щётка и паста', category: 'CARE' },
+            { id: 25, text: 'Обезболивающее', category: 'HEALTH' },
+            { id: 30, text: 'Зарядка для телефона', category: 'TECH' },
+            { id: 34, text: 'Очки солнечные', category: 'BASIC' }
+        ].map(item => ({ ...item, completed: false }));
+
+        function App() {
+            const [items, setItems] = useState(() => {
+                const saved = localStorage.getItem('travel_list_movable_v2');
+                return saved ? JSON.parse(saved) : INITIAL_LIST;
+            });
+            
+            const [newItem, setNewItem] = useState('');
+            const [activeCategory, setActiveCategory] = useState('all');
+            const [isAdding, setIsAdding] = useState(false);
+            const [showConfirm, setShowConfirm] = useState(false);
+            
+            // Drag State
+            const [draggedId, setDraggedId] = useState(null);
+            const [dropTargetId, setDropTargetId] = useState(null);
+            const scrollContainerRef = useRef(null);
+
+            useEffect(() => {
+                localStorage.setItem('travel_list_movable_v2', JSON.stringify(items));
+            }, [items]);
+
+            const progress = useMemo(() => {
+                if (items.length === 0) return 0;
+                return Math.round((items.filter(i => i.completed).length / items.length) * 100);
+            }, [items]);
+
+            const toggleItem = (id) => {
+                setItems(prev => prev.map(item => item.id === id ? { ...item, completed: !item.completed } : item));
+            };
+
+            const resetProgress = () => {
+                setItems(prev => prev.map(item => ({ ...item, completed: false })));
+                setShowConfirm(false);
+            };
+
+            const deleteItem = (id) => {
+                setItems(prev => prev.filter(item => item.id !== id));
+            };
+
+            const addItem = (e) => {
+                e.preventDefault();
+                if (!newItem.trim()) return;
+                const item = {
+                    id: Date.now(),
+                    text: newItem,
+                    category: activeCategory === 'all' ? 'BASIC' : activeCategory,
+                    completed: false
+                };
+                setItems(prev => [item, ...prev]);
+                setNewItem('');
+                setIsAdding(false);
+            };
+
+            // --- Улучшенная логика Drag & Drop для Мобилок и Десктопа ---
+            
+            const onDragStart = (id) => {
+                setDraggedId(id);
+                // Виброотклик для мобилок
+                if (window.navigator.vibrate) window.navigator.vibrate(10);
+            };
+
+            const onDragOver = (e, id) => {
+                e.preventDefault();
+                if (draggedId !== id) setDropTargetId(id);
+            };
+
+            const onDrop = (targetId) => {
+                if (draggedId === null || draggedId === targetId) {
+                    setDraggedId(null);
+                    setDropTargetId(null);
+                    return;
+                }
+
+                const newItems = [...items];
+                const fromIndex = newItems.findIndex(i => i.id === draggedId);
+                const toIndex = newItems.findIndex(i => i.id === targetId);
+
+                const [movedItem] = newItems.splice(fromIndex, 1);
+                newItems.splice(toIndex, 0, movedItem);
+
+                setItems(newItems);
+                setDraggedId(null);
+                setDropTargetId(null);
+            };
+
+            // Обработка Тач-событий (для мобилок)
+            const handleTouchMove = (e) => {
+                if (!draggedId) return;
+                const touch = e.touches[0];
+                const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                const itemEl = el?.closest('[data-id]');
+                if (itemEl) {
+                    const id = parseInt(itemEl.getAttribute('data-id'));
+                    if (id !== draggedId) setDropTargetId(id);
+                }
+            };
+
+            const share = async () => {
+                const text = `Собрано ${progress}% чемодана! 🎒`;
+                try {
+                    if (navigator.share) {
+                        await navigator.share({ text, url: window.location.href });
+                    } else {
+                        await navigator.clipboard.writeText(text);
+                    }
+                } catch (err) {
+                    if (err.name !== 'AbortError') console.error(err);
+                }
+            };
+
+            return (
+                <div id="root" onTouchMove={handleTouchMove} onTouchEnd={() => draggedId && onDrop(dropTargetId)}>
+                    {showConfirm && (
+                        <div className="confirm-overlay animate-item">
+                            <div className="bg-slate-900 border border-white/10 p-8 rounded-[2.5rem] w-full max-w-[320px] text-center shadow-2xl">
+                                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-400">
+                                    <Icons.RotateCcw />
+                                </div>
+                                <h3 className="text-xl font-bold mb-3">Новая поездка?</h3>
+                                <p className="text-slate-400 text-sm leading-relaxed mb-8">Точно сбросить все галочки в списке?</p>
+                                <div className="flex flex-col gap-3">
+                                    <button onClick={resetProgress} className="bg-blue-600 py-4 rounded-2xl font-bold text-sm active:scale-95 transition-all">ДА, ОБНУЛИТЬ</button>
+                                    <button onClick={() => setShowConfirm(false)} className="bg-white/5 py-4 rounded-2xl font-bold text-sm text-slate-400 active:scale-95 transition-all">ОТМЕНА</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="fixed-action-container">
+                        {!isAdding ? (
+                            <button onClick={() => setIsAdding(true)} className="btn-glass-float animate-item flex items-center justify-center gap-3">
+                                <Icons.Plus /> 
+                                <span>Добавить пункт</span>
+                            </button>
+                        ) : (
+                            <div className="add-form-popup p-6 flex flex-col gap-4 animate-item">
+                                <form onSubmit={addItem} className="flex gap-2">
+                                    <input autoFocus value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="Что берем?" className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-blue-500 text-[16px]" />
+                                    <button type="submit" className="bg-blue-600 px-6 rounded-2xl text-white active:scale-90"><Icons.Check /></button>
+                                </form>
+                                <button type="button" onClick={() => setIsAdding(false)} className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.25em] text-center pb-1">Закрыть</button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="static-header-section">
+                        <header className="px-5 pb-5">
+                            <div className="flex justify-between items-start mb-5 pt-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 p-0.5 shadow-lg shrink-0 overflow-hidden">
+                                        <img src="https://i.postimg.cc/52J0Hfx3/logo.jpg" alt="Logo" className="w-full h-full object-cover rounded-full" />
+                                    </div>
+                                    <div>
+                                        <h1 className="header-title font-extrabold text-[14px] text-white uppercase tracking-wider">
+                                            Список в <span className="text-blue-400">путешествие 2.0</span>
+                                        </h1>
+                                        <a href="https://t.me/aicreata" target="_blank" className="tg-link inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold mt-1 uppercase">
+                                            <Icons.Telegram /> @aicreata
+                                        </a>
+                                    </div>
+                                </div>
+                                <button onClick={share} className="p-3 glass-card rounded-2xl text-blue-400 active:scale-90 transition-all">
+                                    <Icons.Share />
+                                </button>
+                            </div>
+
+                            <div className="relative p-5 rounded-[2.2rem] overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-800 shadow-xl">
+                                <div className="relative z-10 text-white">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <p className="text-[9px] font-bold uppercase text-white/60 mb-1 tracking-widest text-blue-100">Ваш прогресс</p>
+                                            <h2 className="text-4xl font-black">{progress}%</h2>
+                                        </div>
+                                        <button 
+                                            onClick={() => setShowConfirm(true)}
+                                            className="p-2.5 bg-black/20 hover:bg-black/30 rounded-xl border border-white/10 text-white/80 active:scale-90 transition-all shadow-lg"
+                                        >
+                                            <Icons.RotateCcw />
+                                        </button>
+                                    </div>
+                                    <div className="flex justify-between items-end mb-2">
+                                        <div className="px-3 py-1 rounded-full bg-black/10 text-[10px] font-bold border border-white/5">
+                                            {items.filter(i => i.completed).length} / {items.length}
+                                        </div>
+                                    </div>
+                                    <div className="w-full bg-black/20 h-2.5 rounded-full overflow-hidden shadow-inner">
+                                        <div className="bg-white h-full transition-all duration-700" style={{ width: `${progress}%` }} />
+                                    </div>
+                                </div>
+                                <Icons.Plane className="absolute -bottom-8 -right-8 text-white opacity-10 -rotate-12" />
+                            </div>
+                        </header>
+
+                        <nav className="px-5 pb-4">
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                <button onClick={() => setActiveCategory('all')} className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all border ${activeCategory === 'all' ? 'bg-white text-black border-white' : 'glass-card border-slate-800 text-slate-400'}`}>Все</button>
+                                {Object.entries(CATEGORIES).map(([key, cat]) => (
+                                    <button key={key} onClick={() => setActiveCategory(key)} className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all border ${activeCategory === key ? 'bg-white text-black border-white' : 'glass-card border-slate-800 text-slate-400'}`}>{cat.label}</button>
+                                ))}
+                            </div>
+                        </nav>
+                    </div>
+
+                    <main ref={scrollContainerRef} className="scroll-container no-scrollbar px-5 pt-4 space-y-3">
+                        {items
+                            .filter(i => activeCategory === 'all' || i.category === activeCategory)
+                            .map((item) => (
+                            <div 
+                                key={item.id}
+                                data-id={item.id}
+                                draggable="true"
+                                onDragStart={() => onDragStart(item.id)}
+                                onDragOver={(e) => onDragOver(e, item.id)}
+                                onDrop={() => onDrop(item.id)}
+                                className={`flex items-center gap-2 p-3 rounded-2xl border transition-all ${
+                                    item.completed ? 'bg-slate-900/40 border-transparent opacity-40' : 'glass-card border-slate-800'
+                                } ${draggedId === item.id ? 'dragging' : ''} ${dropTargetId === item.id ? 'border-t-4 border-t-blue-500' : ''}`}
+                            >
+                                <div 
+                                    className="drag-handle"
+                                    onTouchStart={(e) => {
+                                        // Предотвращаем скролл только если начали тянуть за ручку
+                                        onDragStart(item.id);
+                                    }}
+                                >
+                                    <Icons.Grip />
+                                </div>
+                                
+                                <div onClick={() => toggleItem(item.id)} className="flex flex-1 items-center gap-4 cursor-pointer min-w-0">
+                                    <div className="flex-shrink-0">
+                                        {item.completed ? (
+                                            <div className="bg-blue-500 rounded-full p-1 shadow-lg shadow-blue-500/20"><Icons.Check className="text-white" /></div>
+                                        ) : (
+                                            <Icons.Circle className="text-slate-600" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-[15px] font-semibold truncate ${item.completed ? 'line-through text-slate-500' : 'text-slate-100'}`}>{item.text}</p>
+                                    </div>
+                                </div>
+                                
+                                <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 text-slate-700 active:text-rose-500"><Icons.Trash /></button>
+                            </div>
+                        ))}
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `
+                    const CACHE_NAME = 'suitcase-v2.5';
+                    const urlsToCache = [location.href];
+                    self.addEventListener('install', event => {
+                        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+                    });
+                    self.addEventListener('fetch', event => {
+                        event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
+                    });
+                `;
+                const blob = new Blob([swCode], { type: 'text/javascript' });
+                const url = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(url).catch(err => console.log('SW error:', err));
+            });
+        }
+    </script>
+</body>
+</html>
